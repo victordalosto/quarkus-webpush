@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+    <meta charset="UTF-8" />
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    />
+<title>SSE Client Example</title>
+</head>
+<body>
+<h1>Server-Sent Events (SSE) Client Example</h1>
+<div id="messages"></div>
+
+    <script>
+        // Create a new EventSource instance pointing to the SSE endpoint
+        const eventSource = new EventSource("https://localhost:8443/stream")
+
+        const messagesDiv = document.getElementById('messages');
+
+        // Generic onmessage would only handle unnamed messages
+        eventSource.onmessage = function( {data, lastEventId, } ) {
+            console.log('Generic message:', data);
+
+            const messageElement = document.createElement('p');
+            messageElement.textContent = 'id: ' + lastEventId + ' - ' + data;
+            messagesDiv.appendChild(messageElement);
+        };
+
+        // // Used in named events (sse.newEventBuilder().name='${}')
+        // eventSource.addEventListener('mensagem do servidor', function(event) {
+        //     console.log('New message from "mensagem do servidor":', event.data);
+
+        //     const messagesDiv = document.getElementById('messages');
+        //     const messageElement = document.createElement('p');
+        //     messageElement.textContent = event.data;
+        //     messagesDiv.appendChild(messageElement);
+        // });
+
+
+        eventSource.onopen = function (event) {
+            console.log("Connection opened")
+        }
+
+        eventSource.onerror = function(event) {
+            console.error('EventSource failed:', event);
+            eventSource.close();
+        };
+
+        window.onunload = function() {
+            eventSource.close();
+        };
+
+
+    </script>
+</body>
+</html>

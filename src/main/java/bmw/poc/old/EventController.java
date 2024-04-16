@@ -1,4 +1,4 @@
-package bmw.poc.event;
+package bmw.poc.old;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
@@ -9,7 +9,7 @@ import jakarta.ws.rs.sse.Sse;
 import jakarta.ws.rs.sse.SseEventSink;
 
 
-@Path("/events")
+@Path("/old")
 public class EventController {
 
     @Inject

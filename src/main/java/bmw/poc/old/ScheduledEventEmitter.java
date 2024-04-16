@@ -1,4 +1,4 @@
-package bmw.poc.event;
+package bmw.poc.old;
 import java.util.Random;
 import io.quarkus.scheduler.Scheduled;
 import jakarta.enterprise.context.ApplicationScoped;

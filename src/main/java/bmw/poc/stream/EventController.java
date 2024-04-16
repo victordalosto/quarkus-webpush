@@ -16,27 +16,32 @@ import lombok.extern.slf4j.Slf4j;
 @ApplicationScoped
 public class EventController {
 
-    private static Integer counter = 0;
+    private static Integer COUNTER = 0;
 
     @GET
     @Produces(MediaType.SERVER_SENT_EVENTS)
     public void streamEvents(
         @Context SseEventSink eventSink,
-        @Context Sse sse)
-    {
+        @Context Sse sse
+    ) {
         try (final SseEventSink sink = eventSink) {
             while (true) {
                 Thread.sleep(300);
 
                 log.info("Sending event...");
-                counter++;
+                EventController.COUNTER++;
+
                 OutboundSseEvent event = sse.newEventBuilder()
-                        .id(counter.toString())
-                        .name("mensagem do servidor")
-                        .data("Hello, world!")
-                        .comment("Um comentario")
-                        .build();
-                sink.send(event);
+                    .id(COUNTER.toString())
+                    // .name("mensagem do servidor")
+                    .data("Hello, world!")
+                    .comment("Um comentario")
+                    .build();
+
+                if (!sink.isClosed())
+                    sink.send(event);
+                else
+                    break;
             }
         } catch (final InterruptedException ex) {
             Thread.currentThread().interrupt();

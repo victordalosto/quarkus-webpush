@@ -36,8 +36,8 @@ public class ReceiptEvents   {
         log.info(">> registering listener for: " + id);
         var consumer = eventBus.<JsonObject>consumer(id);
         var address = new AddressObject(pushObject, consumer);
+        consumerEvent(address);
         addresses.registerAddress(id, address);
-        consumerEvent(id, address);
     }
 
 
@@ -57,12 +57,12 @@ public class ReceiptEvents   {
 
 
 
-    private void consumerEvent(final String id, final AddressObject address) {
+    private void consumerEvent(final AddressObject address) {
         address.message().handler(event -> {
             if (address.isConnectionClosed()) {
                 unregister(address);
             } else {
-                address.sendToClient("Consumed-resposta: " + id);
+                address.sendToClient("Consumed-resposta: " + event.body());
             }
         });
     }
@@ -70,9 +70,9 @@ public class ReceiptEvents   {
 
 
     private void unregister(final AddressObject address) {
-        if (address.isConnectionClosed()) {
-            address.sendToClient("Closed connection");
-            address.closeConnection();
+        if (!address.isConnectionClosed()) {
+            address.sendToClient("Closed connection")
+                   .thenRun(address::closeConnection);
         }
 
         var message = address.message();

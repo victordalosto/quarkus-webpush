@@ -1,6 +1,8 @@
 package vhdo.poc.receipt.domain;
+import java.util.concurrent.CompletionStage;
 import io.vertx.core.json.JsonObject;
 import io.vertx.mutiny.core.eventbus.MessageConsumer;
+import jakarta.ws.rs.sse.OutboundSseEvent;
 
 
 public record AddressObject (
@@ -16,19 +18,17 @@ public record AddressObject (
     }
 
 
-    public void sendToClient(final String pushMessage) {
-        pushObject.eventSink()
-                  .send(pushObject.sse()
-                                        .newEventBuilder()
-                                        .data(pushMessage)
-                                        .build());
+    public CompletionStage<?> sendToClient(final String pushMessage) {
+        return pushObject.eventSink()
+                         .send(pushObject.sse()
+                                  .newEventBuilder()
+                                  .data(pushMessage)
+                                  .build());
     }
 
 
     public void closeConnection() {
         pushObject.eventSink().close();
     }
-
-
 
 }

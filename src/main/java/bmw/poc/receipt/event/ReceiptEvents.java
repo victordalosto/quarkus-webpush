@@ -1,17 +1,19 @@
 package bmw.poc.receipt.event;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import bmw.poc.receipt.domain.AddressDictionary;
+import bmw.poc.receipt.domain.PushMessage;
 import bmw.poc.receipt.domain.PushObjects;
-import bmw.poc.receipt.domain.PushType;
 import bmw.poc.zold.logging.BmwLogger;
+import io.vertx.core.json.JsonObject;
 import io.vertx.mutiny.core.eventbus.EventBus;
+import io.vertx.mutiny.core.eventbus.MessageConsumer;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
 
 @ApplicationScoped
-public class ReceiptEvents {
+public class ReceiptEvents   {
+
+    private static final AddressDictionary addresses = new AddressDictionary();
 
     @Inject
     private BmwLogger log;
@@ -20,54 +22,56 @@ public class ReceiptEvents {
     private EventBus bus;
 
 
-    private static final Map<PushType, List<String>> address = Map.of(
-        PushType.USER_AGENT, new ArrayList<>(),
-        PushType.APPLICATION_SERVER, new ArrayList<>()
-    );
+
+    public void publish(final String id, final PushMessage message) {
+        log.info(">> publishing msg : " + message);
+        bus.publish(id, message.toJson());
+    }
 
 
-    public void registerListener(
-        String id,
-        PushType type,
-        PushObjects pushObjects
+
+    public void registerListenerInEventBus (
+        final String id,
+        final PushObjects pushObjects
     ) {
-        log.info(">> requesting data id: " + id);
-        address.get(type).add(id);
+        log.info(">> registering listener for: " + id);
+        var message = bus.<JsonObject>consumer(id);
 
-        bus.consumer(address(id, type)).handler(message -> {
-            log.info("Consumed: " + message.body());
-
+        message.handler(event -> {
             var eventSink = pushObjects.eventSink();
-            var sse = pushObjects.sse();
             if (eventSink.isClosed()) {
-                unregisterListener(id, type);
+                unregister(id, message);
             } else {
-                eventSink.send(sse.newEventBuilder()
-                                .data("Consumed-resposta: " + id + " " + type.value())
-                                .build());
+                eventSink.send(pushObjects.sse()
+                                          .newEventBuilder()
+                                          .data("Consumed-resposta: " + id)
+                                          .build());
+                log.info("Consumed: " + event.body());
             }
         });
+
+        addresses.registerAddress(id, message);
     }
 
 
 
-    public void unregisterListener(String id, PushType type) {
-        log.info(">> unregistering data id: " + id);
-        if (address.get(type).contains(id)) {
-            address.get(type).remove(id);
-        }
-        bus.consumer(address(id, type)).unregister();
+    public void unregisterListenerInEventBus(final String id) {
+        addresses.getListeners(id)
+                 .forEach(listener -> unregister(id, listener));
+        addresses.unregisterAddress(id);
     }
 
 
-    public void publish(String id, PushType type) {
-        log.info(">> publishing data id: " + id);
-        bus.publish(address(id, type), "publisher sent a new msg");
+
+    private void unregister(
+        final String id,
+        final MessageConsumer<JsonObject> consumer
+    ) {
+        consumer.unregister().subscribe().with(
+            success -> log.info ("Unregistered listener: " + id),
+            failure -> log.error("Error unregistering consumer" + failure.getMessage())
+        );
     }
 
-
-    private String address(String id, PushType type) {
-        return type.value() + "-" + id;
-    }
 
 }

@@ -1,5 +1,5 @@
 package bmw.poc.push.service;
-import bmw.poc.receipt.domain.PushType;
+import bmw.poc.receipt.domain.PushMessage;
 import bmw.poc.receipt.event.ReceiptEvents;
 import bmw.poc.zold.logging.BmwLogger;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -19,7 +19,9 @@ public class PushService {
 
     public void pushMessage(String id) {
         log.info("Pushing message for: " + id);
-        events.publish(id, PushType.USER_AGENT);
+
+        PushMessage message = new PushMessage(id, "Pushing message for: " + id);
+        events.publish(id, message);
     }
 
 

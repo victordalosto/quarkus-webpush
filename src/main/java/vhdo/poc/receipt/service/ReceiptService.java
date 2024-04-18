@@ -1,8 +1,8 @@
 package vhdo.poc.receipt.service;
-import vhdo.poc.receipt.domain.PushObjects;
-import vhdo.poc.receipt.event.ReceiptEvents;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import vhdo.poc.receipt.domain.PushObject;
+import vhdo.poc.receipt.event.ReceiptEvents;
 
 
 @ApplicationScoped
@@ -14,7 +14,7 @@ public class ReceiptService {
 
     public void registerForReceipt(
         final String id,
-        final PushObjects pushObjects
+        final PushObject pushObjects
     ) {
         events.registerListenerInEventBus(id, pushObjects);
     }

@@ -4,8 +4,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import io.vertx.core.json.JsonObject;
-import io.vertx.mutiny.core.eventbus.MessageConsumer;
 
 
 /**
@@ -15,7 +13,7 @@ import io.vertx.mutiny.core.eventbus.MessageConsumer;
 public class AddressDictionary {
 
 
-    private final Map<String, List<MessageConsumer<JsonObject>>>
+    private final Map<String, List<AddressObject>>
         addresses = Collections.synchronizedMap(new HashMap<>()
     );
 
@@ -23,11 +21,12 @@ public class AddressDictionary {
 
     public synchronized void registerAddress(
         final String id,
-        final MessageConsumer<JsonObject> message
+        final AddressObject addressObject
     ) {
         addresses.computeIfAbsent(id, k -> new ArrayList<>())
-                 .add(message);
+                 .add(addressObject);
     }
+
 
 
     public synchronized void unregisterAddress(final String id) {
@@ -35,9 +34,20 @@ public class AddressDictionary {
     }
 
 
-    public List<MessageConsumer<JsonObject>> getListeners(final String id) {
-        return addresses.getOrDefault(id, Collections.emptyList());
+
+    public List<AddressObject> getAddresssById(final String id) {
+        return addresses.getOrDefault(id, List.of());
     }
+
+
+
+    public List<AddressObject> getAllAddresses() {
+        return addresses.values()
+                        .stream()
+                        .flatMap(List::stream)
+                        .toList();
+    }
+
 
 
 }

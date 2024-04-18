@@ -3,7 +3,7 @@ import jakarta.ws.rs.sse.Sse;
 import jakarta.ws.rs.sse.SseEventSink;
 
 
-public record PushObjects (
+public record PushObject (
 
     Sse sse,
     SseEventSink eventSink

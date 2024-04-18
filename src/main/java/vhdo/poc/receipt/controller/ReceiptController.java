@@ -1,5 +1,5 @@
 package vhdo.poc.receipt.controller;
-import vhdo.poc.receipt.domain.PushObjects;
+import vhdo.poc.receipt.domain.PushObject;
 import vhdo.poc.receipt.service.ReceiptService;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -30,7 +30,7 @@ public class ReceiptController {
         @Context SseEventSink eventSink,
         @Context Sse sse
     ) {
-        receiptService.registerForReceipt(id, new PushObjects(sse, eventSink));
+        receiptService.registerForReceipt(id, new PushObject(sse, eventSink));
     }
 
 

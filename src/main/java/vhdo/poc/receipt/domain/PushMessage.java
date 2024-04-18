@@ -1,6 +1,6 @@
 package vhdo.poc.receipt.domain;
-
 import io.vertx.core.json.JsonObject;
+
 
 public record PushMessage (
 

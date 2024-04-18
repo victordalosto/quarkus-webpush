@@ -1,8 +1,10 @@
 package vhdo.poc.receipt.event;
 import io.vertx.core.json.JsonObject;
 import io.vertx.mutiny.core.eventbus.EventBus;
+import io.vertx.mutiny.core.eventbus.MessageConsumer;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import jakarta.ws.rs.sse.SseEventSink;
 import vhdo.poc.receipt.domain.AddressDictionary;
 import vhdo.poc.receipt.domain.AddressObject;
 import vhdo.poc.receipt.domain.PushMessage;
@@ -30,28 +32,12 @@ public class ReceiptEvents   {
 
 
 
-    public void registerListenerInEventBus (
-        final String id,
-        final PushObject pushObject
-    ) {
+    public void registerListenerInEventBus (final String id, final PushObject pushObject) {
         log.info(">> registering listener for: " + id);
-        var eventSink = pushObject.eventSink();
         var consumer = eventBus.<JsonObject>consumer(id);
         var address = new AddressObject(pushObject, consumer);
-
-        consumer.handler(event -> {
-            if (address.isConnectionClosed()) {
-                unregister(address);
-            } else {
-                eventSink.send(pushObject.sse()
-                                         .newEventBuilder()
-                                         .data("Consumed-resposta: " + id)
-                                         .build());
-                log.info("Consumed: " + event.body());
-            }
-        });
-
         addresses.registerAddress(id, address);
+        consumerEvent(id, address);
     }
 
 
@@ -64,29 +50,32 @@ public class ReceiptEvents   {
 
     public void cleanDeadListener() {
         addresses.getAllAddresses()
-            .forEach(address -> {
-                if (address.isConnectionClosed()) {
-                    unregister(address);
-                }
-            });
+                 .stream()
+                 .filter(AddressObject::isConnectionClosed)
+                 .forEach(this::unregister);
     }
 
 
 
-    private void unregister(
-        final AddressObject address
-    ) {
-        var message = address.message();
-        var eventSink = address.pushObject().eventSink();
-        if (!eventSink.isClosed()) {
-            eventSink.send(address.pushObject()
-                            .sse()
-                                .newEventBuilder()
-                                .data("Closed connection")
-                                .build());
-            eventSink.close();
+    private void consumerEvent(final String id, final AddressObject address) {
+        address.message().handler(event -> {
+            if (address.isConnectionClosed()) {
+                unregister(address);
+            } else {
+                address.sendToClient("Consumed-resposta: " + id);
+            }
+        });
+    }
+
+
+
+    private void unregister(final AddressObject address) {
+        if (address.isConnectionClosed()) {
+            address.sendToClient("Closed connection");
+            address.closeConnection();
         }
 
+        var message = address.message();
         message.unregister().subscribe().with(
             success -> log.info ("Unregistered listener: " + message.address()),
             failure -> log.error("Error unregistering consumer" + failure.getMessage())

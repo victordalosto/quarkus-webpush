@@ -1,7 +1,7 @@
 package vhdo.poc.push.service;
 import vhdo.poc.receipt.domain.PushMessage;
 import vhdo.poc.receipt.event.ReceiptEvents;
-import vhdo.poc.zold.logging.BmwLogger;
+import vhdo.poc.zold.logging.MyLogger;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
@@ -14,7 +14,7 @@ public class PushService {
 
 
     @Inject
-    private BmwLogger log;
+    private MyLogger log;
 
 
     public void pushMessage(String id) {

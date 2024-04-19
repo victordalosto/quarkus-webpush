@@ -9,7 +9,7 @@ import vhdo.poc.receipt.domain.AddressDictionary;
 import vhdo.poc.receipt.domain.AddressObject;
 import vhdo.poc.receipt.domain.PushMessage;
 import vhdo.poc.receipt.domain.PushObject;
-import vhdo.poc.zold.logging.BmwLogger;
+import vhdo.poc.zold.logging.MyLogger;
 
 
 @ApplicationScoped
@@ -18,7 +18,7 @@ public class ReceiptEvents   {
     private static final AddressDictionary addresses = new AddressDictionary();
 
     @Inject
-    private BmwLogger log;
+    private MyLogger log;
 
     @Inject
     private EventBus eventBus;

@@ -1,0 +1,192 @@
+
+RFC:
+  Generic Event Delivery Using HTTP Push
+
+
+Motivação:
+  Eventos de tempo-real (chamadas, msg) podem ser enviados quando oportuno. [Eficiencia de bateria e Network]
+  Não usa de maneira descoordenada as conexões persistentes ou sessões múltiplas. [Filas]
+  Consolidamos a entrega de eventos em uma única sessão em um único serviço. [Consistencia, Padronizacao]
+  As mensagens podem ser enfileradas e entregadas quando necessário [Delivery Assurance]
+  Somente o push service interage com o usuário.
+
+
+Objetivo:
+  Protocolo de entrega de eventos usando HTTP Push.
+
+
+Terminologias:
+  Push Message:
+    Mensagem enviada pelo Application Server para o User Agent via Push Service.
+  Push Message Subscription:
+    Contexto de entrega de mensagens. Estabelecido entre o User Agent e o Push Service.
+    Todas as mensagens são associadas a um Push Message Subscription.
+  Push Message Receipt:
+    Confirmação de entrega de uma mensagem enviada pelo Push Service para o Application Server.
+  Topic:
+    É uma String que fica em um field de header
+    É usado para relacionar mensagens enviadas para o mesmo Subscription.
+    Permite que o Application Server faça um update de uma mensagem usando esse tópico.
+    Deve conter só até 32 caracteres
+
+
+Componentes:
+  User Agent:
+    Cliente. Aplicação que recebe push messages.
+  Push Service:
+    Serviço intermediário que entrega mensagens para o User Agent.
+    Permite mandar msg para o User Agent, mesmo que ele não esteja ativo.
+  Application Server:
+    Responsável por gerar as notificações que serão enviadas para o User Agent.
+    Serviço extremo que faz a solitação de um push message.
+
+
+Flow:
+  Subscription:
+    O [User Agent] se SUBSCREVE no [Push Service] para receber notificações
+    O [User Agent] recebe um endpoint único do [Push Service] para receber notificações do [Application Server].
+    (O subscription garante que apenas o servidor de aplicação autorizado possa enviar mensagens)
+    (O application Serve não precisa conhecer a identidade real do usuário)
+    (O [User Agent] usa essa subscrição para monitorar o [Push Service] por incoming messages)]
+    [Possui dois resources]
+      - Subscription resources (Privado do User Agent); usado para receber notificações de uma subscricao ou deletar uma subscrição
+      - Push Message resources (Public); usado para enviar notificações para uma subscricao
+  Registro:
+    O [User Agent] envia esse endpoint para o [Application Server]. (Configuração / Inscrição)
+    O [Application Server] armazena esse endpoint associado ao usuário específico para uso futuro.
+  Envio de notificação:
+    - Quando o [Application Server] quer enviar uma notificação, o que ele faz?
+      O [Application Server] envia a notificação para o [Push Service] (Através do endpoint do serviço de push)
+      E o [Push Service] entrega a notificação para o [User Agent].
+  Recebimento de notificação:
+    O [Push Service] pode escolher armazenar a notificação até que o [User Agent] esteja pronto para recebê-la.
+  Entrega ao usuário:
+    Quando o [User Agent] estiver disponível, o [Push Service] entrega a notificação.
+  Confirmação:
+    O [User Agent] envia uma confirmação de recebimento para o [Push Service].
+    O [Push Service] envia umm acknowledge de entrega para o [Application Server].
+
+
+Resources:
+  Push Service: subscribe/{id}   @POST
+    Creates a push service subscription.
+    A URL for the push Service is configured into user Agents
+  Push Message Subscription: subscribe/{id}   @GET | @DELETE
+    Provides Read and Delete access for a message subscription.
+    The User agent receives push messages using a push message subscription.
+    Every Push message subscription has exactly one push resource associated with it.
+  Push Message Subscription Set: subscription-set/{id}   @GET | @DELETE
+    Provides Read and Delete for a collection of push message subscriptions.
+    A User Agent receives push messages for all the push message subscription in the set.
+  Push: pushmessage/{id}   @POST
+    An application server requests the delivery of a push message using a push resource.
+  Push Message:  new_url  @GET | @DELETE
+    Resource to identify push messages that have been accepted for delivery.
+    The resource is also deleted by the User Agent to acknowledge receipt of a push message.
+  Receipt Subscription:  receipt @ GET
+    An application receives delivery confirmation for push messages using a receipt subscription
+
+
+Detailed Resources:
+  subscribe/{id}  @POST:
+    Creates a new subscription
+    User Agent to Push Service
+    return 201 with LOCATION header field
+    The location corresponds to the push message subscription in format "urn:ietf:params:push"
+    +
+    An application-specif method is used to distribute the push URI to the application server
+    Example
+      REQUEST
+          POST /subscribe HTTP/1.1
+          Host push.example.net
+      RESPONSE
+          HTTP/1.1 201 Created
+          Headers
+            Date Thu, 11 Dec 2014 23:56:52 GMT
+            Link </push/JzLQ3raZJfFBR0aqvOMsLrt54w4rJUsV>;
+                  rel="urn:ietf:params:push"
+            Link </subscription-set/4UXwi2Rd7jGS7gp5cuutF8ZldnEuvbOy>;
+                  rel="urn:ietf:params:push:set"
+            Location https://push.example.net/subscription/LBhhw0OohO-Wl4Oi971UG
+
+  subscribe/{id}  @GET:
+    The User Agent that wants to receive message make a GET to receive content
+    The push message doesn't respond to this request, instead, it uses HTTP/2 to send
+    content of push messages as they are sent by application servers.
+    The application Server can send a header of urgency, explicitying the type of messages that it will receive.
+    Recebendo msgs
+      Cada message é pushado
+
+  push/{id}  @POST:
+    The application server request the delivery of a message to the user, sending a POST to push server.
+    The content of the message is included in the body of the request.
+    The request must contain a TTL header (in seconds)
+    returns 201 with the push message accepted (Not necessarily delivered)
+    The location MUST be included with the push message resource that was created.
+    Example
+      REQUEST
+          POST /push/JzLQ3raZJfFBR0aqvOMsLrt54w4rJUsV HTTP/1.1
+            Headers
+              Host push.example.net
+              TTL 15
+              Content-Type text/plain;charset=utf8
+              Content-Length 36
+            Body
+            iChYuI3jMzt3ir20P8r_jgRR-dSuN182x7iB
+      RESPONSE
+          HTTP/1.1 201 Created
+          Date Thu, 11 Dec 2014 23:56:55 GMT
+          Location https://push.example.net/message/qDIYHNcfAIPP_5ITvURr-d6BGt
+    It should return 400 if the request doesn't contain TTL.
+    After TTL exceded, the push message should not try to deliver the message.
+    The push Service should not deliver push messages with lower urgency than the value indicated by the UA
+    URGENCY
+      VERY-LOW | LOW | NORMAL | HIGH
+      The application server MAY include the urgency header in the request for push message delivery
+      If the Urgency is null it becomes NORMAL
+      The urgency should not be forwarded to the User Agent.
+    TOPIC
+      Caso o application Server faça um push message contendo um tópico
+        Ele vai criar uma nova push message e deletar qualquer mensagem com o mesmo tópico
+        Se a mensagem ja foi enviada, ela deve ser supremida
+
+  async push/{id}  @POST:
+    The Application Server MUST support delivery confirmation.
+    The Application service can include the Prefer header to request a confirmation
+    of when the push message is delivered and acknowledged by the User Agent.
+    The push Service provides a URI for the receipt subscription resource
+    Example
+      REQUEST
+          POST /push/JzLQ3raZJfFBR0aqvOMsLrt54w4rJUsV HTTP/1.1
+            Headers
+              Host push.example.net
+              TTL 15
+              Content-Type text/plain;charset=utf8
+              Content-Length 36
+            Body
+            iChYuI3jMzt3ir20P8r_jgRR-dSuN182x7iB
+      RESPONSE
+          HTTP/1.1 202 Accepted
+          Date Thu, 11 Dec 2014 23:56:55 GMT
+          Link </receipt-subscription/3ZtI4YVNBnUUZhuoChl6omUvG4ZM>;
+               rel="urn:ietf:params:push:receipt"
+          Location https://push.example.net/message/qDIYHNcfAIPP_5ITvURr-d6BGt
+    The application can return 400 for request with invalid receipt subscription.
+
+
+Requirements:
+  - MUST use HTTPS (over 443)
+  - Idle timout MUST NOT be less than 2 hours 4 minutes
+
+
+
+Reuniao Bruno:
+
+INFOTIAN: 37396
+  ices-experience-trigger-service
+  hivernq4
+  postgresql
+
+MCT:
+  envolve e abstrai o mqtt - Comunicacao com o veiculo
+  broker - topico é uma URL que voce cria e você postar e escutar topico.

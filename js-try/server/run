@@ -1,0 +1,4 @@
+to run the client:
+
+npm install
+npx nodemon app
